@@ -14,9 +14,9 @@ _inicial = np.ones((1, 7))
 INICIAL = _inicial / np.sum(_inicial, axis=1)
 
 # Al realizar multiplicaciones de números muy pequeños cada vez se tiende a 0, llegando a provocar desbordamientos
-# Por ello se utilizan logaritmos para evitar este comportamiento
-# A partir de ahora las multiplicaciones y divisiones seguirán las propiedades de los logaritmos de forma que:
-# log(a*b) = log(a) + log(b) y log(a/b) = log(a) - log(b). Puede suceder que en algún punto las probabilidades sean 0, en ese caso se añade una variable epsilon para evitar errores
+# Por ello utilizaremos valores "c" que normalizarán las probabilidades y por tanto eliminarán dichos problemas
+
+c = {}
 
 def __forward(secuencia, transicion, emision, distribucion_inicial):
     # Se crea una matriz que almacenará para cada instante de la secuencia la probabilidad de colocarse en cada estado
@@ -24,13 +24,18 @@ def __forward(secuencia, transicion, emision, distribucion_inicial):
 
     # El primer instante vendrá de multiplicar la distribución inicial por las probabilidades de la matriz de emisión para la observación de la secuencia
     alpha[0, :] = distribucion_inicial * emision[:, secuencia[0]]
+    c[0] = 1 / sum(alpha[0, :]) #Valor para escalar alpha
+    print("ALPHA ANTES",alpha[0, :])
+    alpha[0, :] = c[0] * alpha[0,:]
+    print("ALPHA DESPUES",alpha[0, :])
 
     for t in range(1, len(secuencia)):
         for estado in range(NUMERO_ESTADOS):
             # Se calcula cada valor de alpha, multiplicando el valor anterior por la probabilidad de cada estado en la matriz de transición dado el estado 'j' (instante 't+1') 
             # y el valor de la matriz de emisión dada la observación de la secuencia en el instante 't' y el estado 'i'
             alpha[t, estado] = alpha[t - 1].dot(transicion[:, estado]) * emision[estado, secuencia[t]]
-
+        c[t] = 1/sum(alpha[t, :])
+        alpha[t, :] = c[t] * alpha[t, :]
     # alpha por tanto representa la probabilidad de estar en el estado 'i' en el tiempo 't' dado el modelo y las observaciones hasta el tiempo 't'
     return alpha
 
@@ -40,7 +45,7 @@ def __backward(secuencia, transicion, emision):
     beta = np.zeros((TAM_SECUENCIA, NUMERO_ESTADOS))
 
     # se rellena la última columna con 1
-    beta[TAM_SECUENCIA - 1] = np.ones((NUMERO_ESTADOS))
+    beta[TAM_SECUENCIA - 1] = np.ones((NUMERO_ESTADOS)) * c[TAM_SECUENCIA - 1]
 
     
     for t in range(TAM_SECUENCIA - 2, -1, -1):
@@ -48,12 +53,14 @@ def __backward(secuencia, transicion, emision):
             # El valor de beta viene dado por la multiplicación del valor del instante 't+1', la probabilidad de cada estado en la matriz de emisión dada la observación
             # y las probabilidades del estado 'j'(t+1) en la matriz de transición dado el estado 'i'
             beta[t, estado] = (beta[t + 1] * emision[:, secuencia[t + 1]]).dot(transicion[estado, :])
+            beta[t, estado] = beta[t, estado] * c[t]
 
     return beta
 
 def __baum_welch(secuencia, transicion, emision, distribucion_inicial, n_iter=100):
     
     TAM_SECUENCIA = len(secuencia) # Se calcula el tamaño de la secuencia
+    oldProb=-np.inf #Se almacena la probabilidad de la secuencia
 
     # Por cada una de las iteraciones indicada en n_iter
     for n in range(n_iter):
@@ -90,6 +97,7 @@ def __baum_welch(secuencia, transicion, emision, distribucion_inicial, n_iter=10
         # Denominador: Suma de las probabilidades de estar en cada estado a lo largo del tiempo
         
         denominador = np.sum(gamma, axis=1)
+        denominador = np.clip(denominador, 0.0001, np.inf)
         transicion = np.sum(x, axis=2) / denominador.reshape((-1, 1))
 
         # Se calcula el valor de gamma para el último 't' y se concatena con la matriz gamma
@@ -103,7 +111,16 @@ def __baum_welch(secuencia, transicion, emision, distribucion_inicial, n_iter=10
 
         emision = np.divide(emision, denominador.reshape((-1, 1)))
 
+        if(predict() > oldProb):
+            oldProb=predict()
+        else:
+            return (transicion, emision)
+
     return (transicion, emision)
+
+def predict():
+    logProb = sum([np.log(ci) for ci in c.values()])
+    return -logProb
 
 def iniciar_BaumWelch(dataframe):
 
@@ -128,7 +145,7 @@ def iniciar_BaumWelch(dataframe):
     # Tras inicializar los parámetros se realiza la llamada al método Baum Welch
     return __baum_welch(secuencia, transicion, emision, INICIAL, n_iter=100)
 
-def aplicar_BaumWelch(dataframe , transicion, emision, n_iter=100):
+def aplicar_BaumWelch(dataframe,transicion, emision, n_iter=100):
 
     secuencia = dataframe['actividad'].values
 
