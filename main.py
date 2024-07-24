@@ -1,6 +1,5 @@
 import input
 import BaumWelch
-import Predict
 
 CODIGO = 'NLR0174'
 
@@ -12,13 +11,13 @@ def main():
     dataframe_semana1 = input.obtener_semana_usuario(CODIGO,53)
     # print(dataframe_semana1)
     print("==================== OBTENER MATRICES DE EMISIÓN Y TRANSICIÓN ==========================")
-    emision, transicion = BaumWelch.iniciar_BaumWelch(dataframe_semana1)
+    transicion, emision, prob = BaumWelch.iniciar_BaumWelch(dataframe_semana1)
     for i in range(1,5):
         dataframe = input.obtener_semana_usuario(CODIGO, 53-i)
-        emision, transicion = BaumWelch.aplicar_BaumWelch(dataframe, transicion, emision, 10)
+        transicion, emision, prob = BaumWelch.aplicar_BaumWelch(dataframe, transicion, emision, 10)
     #print("TRANSICIÓN:", transicion)
-    #print("EMISIÓN", emision)
-    print("PROBABILIDAD", BaumWelch.predict())
+    print("EMISION", emision)
+    print("PROBABILIDAD", prob)
     print("=========================== PREDICCIÓN ====================================")
     # prob, ruta = Predict.viterbi(transicion, emision, BaumWelch.NUMERO_ESTADOS, dataframe_semana1['actividad'].values, BaumWelch.INICIAL[0])
     # print("PROBABILIDAD",prob)
