@@ -1,24 +1,41 @@
+import Predict
 import input
 import BaumWelch
+import matplotlib.pyplot as plt
+import numpy as np
 
-CODIGO = 'NLR0174'
+CODIGO = 'MCF0600'
 
 def main():
+    #input.actualizar_archivo_local(secuencia, CODIGO)
     print("==================== INICIALIZACIÓN DE LOS DATOS ==========================")
-    secuencia = input.obtener_secuencia_observaciones(CODIGO)
-    #print("\nGENERADA SECUENCIA DE OBSERVACIONES DE {} SEMANAS:\n{}".format(len(secuencia.keys()), secuencia))
+    secuencia = input.get_secuencia_local(CODIGO)
+    print("\nGENERADA SECUENCIA DE OBSERVACIONES DE {} SEMANAS:\n{}".format(len(secuencia.keys()), secuencia))
     print("==================== OBTENCIÓN DE DATAFRAME PARA APLICACIÓN BAUM WELCH ==========================")
-    dataframe_semana1 = input.obtener_semana_usuario(CODIGO,53)
-    # print(dataframe_semana1)
+    secuencia_semana = input.obtener_semana_usuario(secuencia,53)
+    print(secuencia_semana)
     print("==================== OBTENER MATRICES DE EMISIÓN Y TRANSICIÓN ==========================")
-    transicion, emision, prob = BaumWelch.iniciar_BaumWelch(dataframe_semana1)
-    for i in range(1,5):
-        dataframe = input.obtener_semana_usuario(CODIGO, 53-i)
-        transicion, emision, prob = BaumWelch.aplicar_BaumWelch(dataframe, transicion, emision, 10)
+    
+    dataframe, transicion, emision = BaumWelch.iniciar_BaumWelch(secuencia_semana)
+    plot_x = range(6, len(secuencia.keys()))
+    plot_y = []
+
+    for i in range(1,6):
+        transicion, emision = BaumWelch.aplicar_entrenamiento(secuencia_semana, 100, 0.01, 0.1, 5, 0.5, transicion, emision)
+        secuencia_semana = input.obtener_semana_usuario(secuencia, i)
+
+    for i in range(6, len(secuencia.keys())):
+        prob = Predict.viterbi(transicion, emision, BaumWelch.NUMERO_ESTADOS, secuencia[i])
+        plot_y.append(prob[0])
+        transicion, emision = BaumWelch.aplicar_entrenamiento(secuencia_semana, 100, 0.01, 0.1, 5, 0.5, transicion, emision)
+        secuencia_semana = input.obtener_semana_usuario(secuencia, i)
+
+    
+    plt.plot(plot_x, plot_y)
+    plt.show()
     #print("TRANSICIÓN:", transicion)
-    print("EMISION", emision)
-    print("PROBABILIDAD", prob)
-    print("=========================== PREDICCIÓN ====================================")
+    #print("EMISION", emision)
+    #print("=========================== PREDICCIÓN ====================================")
     # prob, ruta = Predict.viterbi(transicion, emision, BaumWelch.NUMERO_ESTADOS, dataframe_semana1['actividad'].values, BaumWelch.INICIAL[0])
     # print("PROBABILIDAD",prob)
     # print("PREDECCIÓN RUTA",ruta)

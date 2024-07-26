@@ -3,16 +3,18 @@ import numpy as np
 # VITERBI: Algoritmo que halla la secuencia más probable de estados ocultos
 # que produce una secuencia observada de sucesos
 
-def viterbi(transmision, emision, nestados, obs, distribucion_inicial, epsilon = 0.0001):
+def viterbi(transmision, emision, nestados, obs, epsilon = 0.0001):
+
+    distribucion_inicial = np.ones((1, nestados))
+    distribucion_inicial = distribucion_inicial / np.sum(distribucion_inicial, axis=1)
+    distribucion_inicial = distribucion_inicial[0]
+
     # Se inicializan las matrices que contendrán:
     vit = [{}] # Las probabilidades dependiendo del instante 't' y el estado 'i'
     path = {} # Las distintas rutas dependiendo del estado escogido
 
     # Se calcula una lista a partir del número de estados
     estados = range(0, nestados)
-
-    transmision = np.log(np.clip(transmision, epsilon, 1))
-    emision = np.log(np.clip(emision, epsilon, 1))
 
     # Se inicializan las primeras probabilidades a partir de la distribución inicial
     for i in estados:

@@ -5,8 +5,8 @@ from datetime import datetime
 
 
 diccionario_actividades = {}
-EMAIL_USUARIO = "Neil.Leonard.Rosales@dtaa.com"
-CODIGO = 'NLR0174'
+EMAIL_USUARIO = "Maxwell.Clark.Faulkner@dtaa.com"
+CODIGO = 'MCF0600'
 
 def __actualizar_diccionario(row, actividad):
     valor = {}
@@ -26,28 +26,9 @@ def __actualizar_diccionario(row, actividad):
     
     diccionario_actividades[clave_usuario][clave_semana].append(valor)
 
-def __actualizar_diccionario_email(row, valor_correo, codigo_usuario):
-        valor = {}
-        valor['activity'] = 'EMAIL'
-        valor['date'] = row[1]
-        
-        clave_usuario = codigo_usuario
-
-        semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
-        clave_semana = semana.isocalendar()[1]
-
-        if row[2] == valor_correo:
-            if clave_usuario not in diccionario_actividades:
-                diccionario_actividades[clave_usuario] = {}
-            
-            if clave_semana not in diccionario_actividades[clave_usuario]:
-                diccionario_actividades[clave_usuario][clave_semana] = []
-            
-            diccionario_actividades[clave_usuario][clave_semana].append(valor)
-
 def __obtener_diccionario_logon():
     res = []
-    with open('./inputs/r3.1/logon.csv', mode="r") as file:
+    with open('./inputs/r4.2/logon.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
@@ -56,26 +37,26 @@ def __obtener_diccionario_logon():
 
 def __obtener_diccionario_http():
     res = []
-    with open('./inputs/r3.1/http.csv', mode="r") as file:
+    with open('./inputs/r4.2/http.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in islice(rows,100000):
             __actualizar_diccionario(row, 'HTTP')
     return res
 
-def __obtener_diccionario_email(email, usuario):
+def __obtener_diccionario_email():
     ## POR REALIZAR, ES NECESARIO PARSEAR LOS NOMBRE DE USUARIO
     res = []
-    with open('./inputs/r3.1/email.csv', mode="r") as file:
+    with open('./inputs/r4.2/email.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            __actualizar_diccionario_email(row, email, usuario)
+            __actualizar_diccionario(row, "EMAIL")
     return res
 
 def __obtener_diccionario_file():
     res = []
-    with open('./inputs/r3.1/file.csv', mode="r") as file:
+    with open('./inputs/r4.2/file.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
@@ -84,7 +65,7 @@ def __obtener_diccionario_file():
 
 def __obtener_diccionario_device():
     res = []
-    with open('./inputs/r3.1/device.csv', mode="r") as file:
+    with open('./inputs/r4.2/device.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
@@ -110,7 +91,7 @@ def __get_acciones(user):
 def __obtener_diccionario():
     __obtener_diccionario_logon()
     __obtener_diccionario_http()
-    __obtener_diccionario_email(EMAIL_USUARIO, CODIGO)
+    __obtener_diccionario_email()
     __obtener_diccionario_file()
     __obtener_diccionario_device()
     return diccionario_actividades
@@ -120,11 +101,27 @@ def obtener_secuencia_observaciones(usuario):
     res = __get_acciones(usuario)
     return res
 
-def obtener_semana_usuario(usuario, semana):
-    actividades_semana =diccionario_actividades.get(usuario).get(semana)
+def obtener_semana_usuario(secuencia, semana):
+    actividades_semana = secuencia.get(semana)
 
     lista_pd =[]
     for actividad in actividades_semana:
         lista_pd.append({'actividad':actividad})
     df = pd.DataFrame(lista_pd)
     return df
+
+def actualizar_archivo_local(secuencia, usuario):
+    f = open("inputs/local.txt", "w")
+    f.write("{};{}".format(usuario, secuencia))
+    f.close()
+
+def get_secuencia_local(usuario):
+    f = open("inputs/local.txt", "r")
+    res = {}
+    for line in f.readlines():
+        lineas = line.split(';')
+        if(lineas[0] == usuario):
+            res = eval(lineas[1])
+            res = dict(res)
+            return res
+    return res
