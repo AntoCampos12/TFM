@@ -3,14 +3,14 @@ import numpy as np
 
 # Configuración del número de estados y las posibles observaciones
 
-NUMERO_ESTADOS = 7  # Número de estados ocultos
+NUMERO_ESTADOS = 9  # Número de estados ocultos
 # ¿Estudio de número de estados?
 
-NUMERO_OBSERVACIONES = 7  # Número de observaciones
+NUMERO_OBSERVACIONES = 9  # Número de observaciones
 # Proviene de las distintas actividades que puede realizar el usuario: VALORES = {'Logon': 0, 'Logoff': 1, 'HTTP': 2, # 'USB': 3, 'Connect': 4, 'Disconnect': 5, 'EMAIL': 6}
 
 # La distribución inicial será de 1/(numero estados)
-_inicial = np.ones((1, 7))
+_inicial = np.ones((1, 9))
 INICIAL = _inicial / np.sum(_inicial, axis=1)
 
 # Al realizar multiplicaciones de números muy pequeños cada vez se tiende a 0, llegando a provocar desbordamientos
@@ -29,6 +29,7 @@ def aplicar_entrenamiento(dataframe, max_iter, factor_conv, factor_restart, max_
     #   • El modelo, representado por la matriz de emision, la de transición y la distribución inicial
 
     secuencia, old_transicion, old_emision = iniciar_BaumWelch(dataframe)
+    mejor_transicion, mejor_emision = old_transicion, old_emision
     puntuacion = -np.inf
     mejor_puntuacion = -np.inf
     fin = False
