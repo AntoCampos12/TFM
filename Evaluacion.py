@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import numpy as np
 
 ## ========================  EVALUACION.PY  =============================== ##
 # Este documento contiene las funciones que, recogen los resultados de la evaluación y ofrecen el rendimiento del modelo
@@ -7,7 +8,7 @@ from datetime import datetime
 # y se almacena en un diccionario por semana.
 # Finalmente se realiza una especie de media que evalua el rendimiento obtenido para cada semana
 
-UMBRAL = 37.5
+UMBRAL = 45
 
 def getEvaluacionSemanas(usuario, diccionario):
     parse_diccionario = [1 if x > UMBRAL else 0 for x in diccionario]
@@ -52,4 +53,20 @@ def __obtener_insiders():
             clave_semana = semana.isocalendar()[1]
             res.append((row[3], clave_semana))
     return res
-    
+
+def calcular_rendimiento(diccionario_evaluaciones):
+    rendimiento_semana = []
+    for evaluacion in diccionario_evaluaciones:
+        if evaluacion["VP"] + evaluacion["FN"] == 0:
+            tasa_VP = 1
+        else:
+            if evaluacion["VP"] / (evaluacion["VP"] + evaluacion["FN"]) == 0:
+                tasa_VP = 1/evaluacion['FN']
+            else:
+                tasa_VP = evaluacion["VP"] / (evaluacion["VP"] + evaluacion["FN"])
+        if evaluacion["VN"] + evaluacion["FP"] == 0:
+            tasa_VN = 1
+        else:
+            tasa_VN = evaluacion["VN"] / (evaluacion["FP"] +  evaluacion["VN"])
+        rendimiento_semana.append(np.sqrt(tasa_VP * tasa_VN))
+    return rendimiento_semana
