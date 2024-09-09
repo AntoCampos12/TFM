@@ -1,5 +1,6 @@
 from functools import reduce
-import Predict
+from outputs import EVAL_MODELOA as archivo_evaluaciones
+from outputs import EVAL_MODELOS as archivo_evaluaciones2
 import input
 import BaumWelch
 import Evaluacion
@@ -11,17 +12,16 @@ import time
 # Función principal, realiza el proceso completo de la aplicación.
 
 # Esta lista contiene todos los códigos almacenados en los archivos locales, es decir, los usuarios utilizados para evaluar el rendimiento de la aplicación
-CODIGOS = ['MCF0600', 'MAS0025', 'NAH0503', 'LBC0356', 'SSH0799', 'LJT0817', 'ANM0123', 'MYD0978', 'RAB0589', 'AJR0932', 
-           'BDV0168', 'BIH0745', 'BLS0678', 'BTL0226', 'CAH0936', 'DCH0843', 'EHB0824', 'EHD0584', 'FMG0527', 'FTM0406', 
+CODIGOS = ['MCF0600', 'MAS0025', 'NAH0503', 'LBC0356', 'SSH0799', 'LJT0817', 'MYD0978', 'RAB0589', 'AJR0932', 'BDV0168', 
+           'BIH0745', 'BLS0678', 'BTL0226', 'CAH0936', 'DCH0843', 'EHB0824', 'EHD0584', 'FMG0527', 'FTM0406', 'SLT0907',
            'GHL0460', 'HJB0742', 'JMB0308', 'JRG0207', 'KPC0073', 'LJR0523', 'LQC0479', 'PPF0435', 'RGG0064', 'RKD0604', 
            'TAP0551', 'WDD0366', 'AAF0535', 'ABC0174', 'AKR0057', 'CCL0068', 'CQW0652', 'DIB0285', 'DRR0162', 'EDB0714', 
            'EGD0132', 'FSC0601', 'HBO0413', 'HXL0968', 'IJM0776', 'IKR0401', 'IUB0565', 'JJM0203', 'KRL0501', 'LCC0819', 
            'MDH0580', 'MOS0047', 'NWT0098', 'PNL0301', 'PSF0133', 'RAR0725', 'RHL0992', 'RMW0542', 'TNM0961', 'VSS0154', 
            'XHW0498', 'BSS0369', 'CCA0046', 'CSC0217', 'GTD0219', 'JGT0221', 'JLM0364', 'JTM0223', 'MPM0220', 'MSO0222', 
-           'SKG0759', 'AAM0658', 'MAR0955', 'KLH0596', 'DGM0754', 'MBW0809', 'HJS0072', 'LPH0572', 'MTT0901', 'EDA0684', 
-           'CRD0624', 'LDD0560', 'EAH0466', 'JRH0455', 'BQS0525', 'DAR0885', 'CAC0889', 'CFW0264', 'AAS0442', 'LHB0606', 
-           'OLB0749', 'HMM0108', 'CYA0506', 'SLT0907']
-
+           'SKG0759', 'AAM0658', 'MAR0955', 'KLH0596', 'LPH0572', 'EDA0684', 'CYA0506', 'OLB0749',
+           'CRD0624', 'LDD0560', 'EAH0466', 'JRH0455', 'BQS0525', 'CAC0889', 'CFW0264', 'AAS0442', 'LHB0606', 'HMM0108']
+maximo = []
 # Se inicializa el diccionario que se rellenara con los resultados de cada una de las evaluaciones
 diccionario = []
 for i in range(0, 53):
@@ -47,21 +47,21 @@ def main(codigo, mostrarEvaluacion):
     plot_y = []
 
     # Durante las primeras cinco semanas solo se entrena el modelo
-    for i in range(1,6):    
-        transicion, emision = BaumWelch.aplicar_entrenamiento(secuencia_semana, 100, 0.01, 0.1, 5, 0.5, transicion, emision)
+    for i in range(1,6):
         secuencia_semana = input.obtener_semana_usuario(secuencia, i)
+        transicion, emision, puntuacion = BaumWelch.aplicar_entrenamiento(secuencia_semana, 20, 0.01, 0.1, 5, 0.5, transicion, emision)
 
     # A partir de la semana cinco, se evalúa la secuencia obtenida y se entrena el módelo con la mejor secuencia estimada
     for i in range(6, len(secuencia.keys())):
-        prob = Predict.viterbi(transicion, emision, BaumWelch.NUMERO_ESTADOS, secuencia[i])
-        plot_y.append(prob[0])
-        secuencia_semana = input.parse_to_dataframe(prob[1])
-        transicion, emision = BaumWelch.aplicar_entrenamiento(secuencia_semana, 100, 0.01, 0.1, 5, 0.5, transicion, emision)
+        secuencia_semana = input.parse_to_dataframe(secuencia[i])
+        transicion, emision, puntuacion = BaumWelch.aplicar_entrenamiento(secuencia_semana, 20, 0.01, 0.1, 5, 0.5, transicion, emision)
+        plot_y.append(puntuacion)
 
     # Se evalúan los resultados obtenidos y se muestra en una gráfica las probabilidades recogidas en cada semana
     resultados_semana = Evaluacion.getEvaluacionSemanas(codigo, plot_y)
     Evaluacion.actualizarDiccionarioEvaluaciones(resultados_semana,diccionario)
     print("============================ EVALUACIÓN COMPLETADA ===========================")
+    maximo.append(max(plot_y))
     if(mostrarEvaluacion):
         plt.plot(plot_x, plot_y)
         plt.show()
@@ -87,5 +87,7 @@ def iteracion_conjunta():
     plot_x = range(0, len(rendimiento))
     plt.plot(plot_x, rendimiento)
     plt.show()
+
+    print("MEDIA UMBRAL", sum(maximo)/len(maximo))
 
 iteracion_individual()

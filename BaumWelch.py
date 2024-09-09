@@ -10,8 +10,8 @@ NUMERO_OBSERVACIONES = 9  # Número de observaciones
 # Proviene de las distintas actividades que puede realizar el usuario: VALORES = {'Logon': 0, 'Logoff': 1, 'HTTP': 2, # 'USB': 3, 'Connect': 4, 'Disconnect': 5, 'EMAIL': 6}
 
 # La distribución inicial será de 1/(numero estados)
-_inicial = np.ones((1, 9))
-INICIAL = _inicial / np.sum(_inicial, axis=1)
+_inicial = np.ones(NUMERO_ESTADOS)
+INICIAL = _inicial / np.sum(_inicial)
 
 # Al realizar multiplicaciones de números muy pequeños cada vez se tiende a 0, llegando a provocar desbordamientos
 # Por ello utilizaremos valores "c" que normalizarán las probabilidades y por tanto eliminarán dichos problemas
@@ -63,7 +63,7 @@ def aplicar_entrenamiento(dataframe, max_iter, factor_conv, factor_restart, max_
     
     transicion = inercia * transicion + (1 - inercia)*transicion
     emision = inercia * emision + (1 - inercia)*emision
-    return transicion, emision
+    return transicion, emision, mejor_puntuacion
 
 def __forward(secuencia, transicion, emision, distribucion_inicial):
     # Se crea una matriz que almacenará para cada instante de la secuencia la probabilidad de colocarse en cada estado
@@ -151,13 +151,13 @@ def __baum_welch(secuencia, transicion, emision, distribucion_inicial):
 
     emision = np.divide(emision, denominador.reshape((-1, 1)))
 
+    #prob = __forward_evaluation(secuencia,transicion,emision,distribucion_inicial)
     prob = predict()
-
     return (transicion, emision, prob)
 
 def predict():
-    logProb = sum([np.log(ci) for ci in c.values()])
-    return -logProb
+    prob = sum(c.values())
+    return prob
 
 def iniciar_BaumWelch(dataframe):
 
@@ -172,12 +172,12 @@ def iniciar_BaumWelch(dataframe):
     # Mátriz de transición
     # Como valor inicial 1/(numero estados)
     transicion = np.ones((NUMERO_ESTADOS, NUMERO_ESTADOS))
-    transicion = transicion / np.sum(transicion, axis=1)
+    transicion = transicion / np.sum(transicion, axis=1, keepdims=True)
 
     # Matriz de emisión
     # Generamos valores aleatorios entre 0 y 1, y luego normalizamos para que cada fila sume 1
     emision = np.random.rand(NUMERO_ESTADOS, NUMERO_OBSERVACIONES)
-    emision = emision / np.sum(emision, axis=1).reshape((-1, 1))
+    emision = emision / np.sum(emision, axis=1, keepdims= True)
 
     # Tras inicializar los parámetros se realiza la llamada al método Baum Welch
     return secuencia, transicion, emision

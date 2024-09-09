@@ -92,7 +92,6 @@ def __obtener_diccionario_http():
     return res
 
 def __obtener_diccionario_email():
-    ## POR REALIZAR, ES NECESARIO PARSEAR LOS NOMBRE DE USUARIO
     res = []
     with open('./inputs/r4.2/email.csv', mode="r") as file:
         rows = csv.reader(file)
@@ -137,6 +136,7 @@ def __obtener_modelo_2():
 
 def __obtener_modelo_3():
     # Este modelo consiste en Login/Logout durante y fuera del horario laboral y el estudio del cambio de dispositivo
+    # Además se suma las actividades de correo y mover archivos a USB
     __obtener_diccionario_logon2()
     __obtener_diccionario_email()
     __obtener_diccionario_file()

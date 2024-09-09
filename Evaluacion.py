@@ -60,10 +60,7 @@ def calcular_rendimiento(diccionario_evaluaciones):
         if evaluacion["VP"] + evaluacion["FN"] == 0:
             tasa_VP = 1
         else:
-            if evaluacion["VP"] / (evaluacion["VP"] + evaluacion["FN"]) == 0:
-                tasa_VP = 1/evaluacion['FN']
-            else:
-                tasa_VP = evaluacion["VP"] / (evaluacion["VP"] + evaluacion["FN"])
+            tasa_VP = evaluacion["VP"] / (evaluacion["VP"] + evaluacion["FN"])
         if evaluacion["VN"] + evaluacion["FP"] == 0:
             tasa_VN = 1
         else:
