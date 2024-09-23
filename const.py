@@ -1,6 +1,6 @@
-ENTRADA = "./inputs/2010_3.txt"
+ENTRADA = "./inputs/2010.txt"
 OBSERVACIONES = 9 # el número de observaciones distintas en el modelo
-UMBRAL = 5000
+UMBRAL = 1000
 
 
 INSIDERS_T1 = [
