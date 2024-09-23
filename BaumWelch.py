@@ -1,12 +1,14 @@
+from copy import copy
 import pandas as pd
 import numpy as np
+from const import OBSERVACIONES
 
 # Configuración del número de estados y las posibles observaciones
 
-NUMERO_ESTADOS = 9  # Número de estados ocultos
+NUMERO_ESTADOS = 10  # Número de estados ocultos
 # ¿Estudio de número de estados?
 
-NUMERO_OBSERVACIONES = 9  # Número de observaciones
+NUMERO_OBSERVACIONES = OBSERVACIONES  # Número de observaciones
 # Proviene de las distintas actividades que puede realizar el usuario: VALORES = {'Logon': 0, 'Logoff': 1, 'HTTP': 2, # 'USB': 3, 'Connect': 4, 'Disconnect': 5, 'EMAIL': 6}
 
 # La distribución inicial será de 1/(numero estados)
@@ -16,7 +18,7 @@ INICIAL = _inicial / np.sum(_inicial)
 # Al realizar multiplicaciones de números muy pequeños cada vez se tiende a 0, llegando a provocar desbordamientos
 # Por ello utilizaremos valores "c" que normalizarán las probabilidades y por tanto eliminarán dichos problemas
 
-c = {}
+global c # = {}
 
 def aplicar_entrenamiento(dataframe, max_iter, factor_conv, factor_restart, max_restart, inercia, transicion, emision):
     # Para realizar el entrenamiento serán necesarios los siguientes parámetros:
@@ -25,19 +27,26 @@ def aplicar_entrenamiento(dataframe, max_iter, factor_conv, factor_restart, max_
     #   • Factor de convergencia, para saber si hemos llegado a un mínimo/máximo local
     #   • Factor de restart, para saber si nos hemos estancado y por tanto reiniciar los parámetros
     #   • Máximo de restart, el máximo de reinicios posibles
-    #   • Inercia, el resultado del entrenamiento será la media entre el mejor valor y el último obtenido, la inercia nos permite saber a qué vamos a darle más peso
+    #   • Inercia, el resultado del entrenamiento será la media entre el mejor valor y el último obtenido, 
+    #       la inercia nos permite saber a qué vamos a darle más peso
     #   • El modelo, representado por la matriz de emision, la de transición y la distribución inicial
-
-    secuencia, old_transicion, old_emision = iniciar_BaumWelch(dataframe)
+    secuencia, _, _ = iniciar_BaumWelch(dataframe) 
+    old_transicion, old_emision = copy(transicion), copy(emision)
     mejor_transicion, mejor_emision = old_transicion, old_emision
     puntuacion = -np.inf
     mejor_puntuacion = -np.inf
     fin = False
     iteraciones = 0
     restart = 0
+    primera_puntuacion = None
+
+    global c
+    c = {}
 
     while not fin:
         nueva_transicion, nueva_emision, nueva_puntuacion = __baum_welch(secuencia, old_transicion, old_emision, INICIAL)
+        if primera_puntuacion is None:
+            primera_puntuacion = nueva_puntuacion
         if nueva_puntuacion > mejor_puntuacion:
             mejor_transicion, mejor_emision, mejor_puntuacion = nueva_transicion, nueva_emision, nueva_puntuacion
         if iteraciones >= max_iter:
@@ -60,30 +69,34 @@ def aplicar_entrenamiento(dataframe, max_iter, factor_conv, factor_restart, max_
             puntuacion = mejor_puntuacion
             old_transicion, old_emision = mejor_transicion, mejor_emision
         iteraciones = iteraciones + 1
-    
-    transicion = inercia * transicion + (1 - inercia)*transicion
-    emision = inercia * emision + (1 - inercia)*emision
-    return transicion, emision, mejor_puntuacion
+    transicion = inercia * transicion + (1 - inercia)*mejor_transicion
+    emision = inercia * emision + (1 - inercia)*mejor_emision
+    return transicion, emision, mejor_puntuacion, primera_puntuacion
 
 def __forward(secuencia, transicion, emision, distribucion_inicial):
+    global c
     # Se crea una matriz que almacenará para cada instante de la secuencia la probabilidad de colocarse en cada estado
     alpha = np.zeros((len(secuencia), NUMERO_ESTADOS))
 
-    # El primer instante vendrá de multiplicar la distribución inicial por las probabilidades de la matriz de emisión para la observación de la secuencia
+    # El primer instante vendrá de multiplicar la distribución inicial por las probabilidades de la matriz de emisión 
+    # para la observación de la secuencia
     alpha[0, :] = distribucion_inicial * emision[:, secuencia[0]]
     c[0] = 1 / sum(alpha[0, :]) #Valor para escalar alpha
 
     for t in range(1, len(secuencia)):
         for estado in range(NUMERO_ESTADOS):
-            # Se calcula cada valor de alpha, multiplicando el valor anterior por la probabilidad de cada estado en la matriz de transición dado el estado 'j' (instante 't+1') 
-            # y el valor de la matriz de emisión dada la observación de la secuencia en el instante 't' y el estado 'i'
+            # Se calcula cada valor de alpha, multiplicando el valor anterior por la probabilidad de cada estado 
+            # en la matriz de transición dado el estado 'j' (instante 't+1') y el valor de la matriz de emisión 
+            # dada la observación de la secuencia en el instante 't' y el estado 'i'
             alpha[t, estado] = alpha[t - 1] @ (transicion[:, estado]) * emision[estado, secuencia[t]]
         c[t] = 1/sum(alpha[t, :])
         alpha[t, :] = c[t] * alpha[t, :]
-    # alpha por tanto representa la probabilidad de estar en el estado 'i' en el tiempo 't' dado el modelo y las observaciones hasta el tiempo 't'
+    # alpha por tanto representa la probabilidad de estar en el estado 'i' en el tiempo 't' 
+    # dado el modelo y las observaciones hasta el tiempo 't'
     return alpha
 
 def __backward(secuencia, transicion, emision):
+    global c
     # Se crea una matriz que almacenará para cada instante de la secuencia la probabilidad de colocarse en cada estado
     TAM_SECUENCIA = len(secuencia)
     beta = np.zeros((TAM_SECUENCIA, NUMERO_ESTADOS))
@@ -102,30 +115,38 @@ def __backward(secuencia, transicion, emision):
     return beta
 
 def __baum_welch(secuencia, transicion, emision, distribucion_inicial):
-    
+    global c
     TAM_SECUENCIA = len(secuencia) # Se calcula el tamaño de la secuencia
 
     # Se realizan las funciones de backward y de forward:
     # Dada la secuencia [0,0,1 .... 4 .... 1,1,2]
-    # 1.- La función forward calcula la probabilidad de obtener un estado a partir de una secuencia de observaciones desde el instante t=0 hasta el instante t=i
+    # 1.- La función forward calcula la probabilidad de obtener un estado a partir de una secuencia de observaciones 
+    # desde el instante t=0 hasta el instante t=i
     alpha = __forward(secuencia, transicion, emision, distribucion_inicial)
-    # 2.- La función backward calcula la probabilidad de obtener las observaciones restantes desde el instante t=i hasta el final dado un estado
+    # 2.- La función backward calcula la probabilidad de obtener las observaciones restantes 
+    # desde el instante t=i hasta el final dado un estado
     beta = __backward(secuencia, transicion, emision)
 
-    # Se crea una matriz tridimensional x(i,j,t) que almacenará la probabilidad de estar en el estado 'i' en el tiempo 't' y en el estado 'j' en el tiempo 't+1'
+    # Se crea una matriz tridimensional x(i,j,t) que almacenará la probabilidad de ir de un estado 'i' 
+    # en el tiempo 't' a un el estado 'j' en el tiempo 't+1'
     x = np.zeros((NUMERO_ESTADOS, NUMERO_ESTADOS, TAM_SECUENCIA - 1))
 
     # Para cada instante 't', se calculará cada x(i,j,t), que proviene de realizar la división:
     # Numerador: Probabilidad de estar en el estado 'i' en el tiempo 't' y en el estado 'j' en el tiempo 't+1' dado una observación 'O' y un modelo 'M'
     # Denominador: Probabilidad de obtener la secuencia de observaciones 'O' dado un modelo 'M'
-    # Con modelo nos referimos a numero de estados, secuencia de observaciones y las probabilidad de matriz de transimisión, matriz de emisión y distribución inicial
+    # Con modelo nos referimos a numero de estados, secuencia de observaciones y 
+    #   las probabilidad de matriz de transimisión, matriz de emisión y distribución inicial
     for t in range(TAM_SECUENCIA - 1):
-        # Para cada instante 't', el denominador viene dado por la multiplicación del valor del algoritmo forward desde el instante 0 hasta 't', la probabilidad de transición,
-        # la probabilidad de emisión para la observación de la secuencia en el instante 'j' y la probabilidad del algoritmo backward desde 't+1' hasta el final
+        # Para cada instante 't', el denominador viene dado por la multiplicación del valor del algoritmo forward 
+        #   desde el instante 0 hasta 't', la probabilidad de transición,
+        # la probabilidad de emisión para la observación de la secuencia en el instante 'j' y la probabilidad del algoritmo backward 
+        #   desde 't+1' hasta el final
         denominador = (alpha[t, :].T @ transicion * emision[:, secuencia[t + 1]].T) @ beta[t + 1, :]
         for i in range(NUMERO_ESTADOS):
-            # El numerador proviene de la multiplicación del valor del algoritmo forward del estado 'i' desde el instante 0 hasta 't', la matriz de transición para el estado 'i',
-            # la probabilidad de emisión para la observación de la secuencia en el instante 'j' y la probabilidad del algoritmo backward desde 't+1' hasta el final
+            # El numerador proviene de la multiplicación del valor del algoritmo forward del estado 'i' 
+            #   desde el instante 0 hasta 't', la matriz de transición para el estado 'i',
+            # la probabilidad de emisión para la observación de la secuencia en el instante 'j' y la probabilidad del algoritmo backward 
+            #   desde 't+1' hasta el final
             numerador = alpha[t, i] * transicion[i, :] * emision[:, secuencia[t + 1]].T * beta[t + 1, :].T
             x[i, :, t] = numerador / denominador
 
@@ -156,6 +177,7 @@ def __baum_welch(secuencia, transicion, emision, distribucion_inicial):
     return (transicion, emision, prob)
 
 def predict():
+    global c
     prob = sum(c.values())
     return prob
 

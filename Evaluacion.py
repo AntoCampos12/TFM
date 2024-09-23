@@ -1,6 +1,7 @@
 import csv
 from datetime import datetime
 import numpy as np
+from const import UMBRAL
 
 ## ========================  EVALUACION.PY  =============================== ##
 # Este documento contiene las funciones que, recogen los resultados de la evaluación y ofrecen el rendimiento del modelo
@@ -8,27 +9,40 @@ import numpy as np
 # y se almacena en un diccionario por semana.
 # Finalmente se realiza una especie de media que evalua el rendimiento obtenido para cada semana
 
-UMBRAL = 45
+def compruebaSemana(tupla):
+    if tupla in insiders:
+        return True
+    elif (tupla[0], tupla[1]-1) in insiders:
+        return True
+    elif (tupla[0], tupla[1]+1) in insiders:
+        return True
+    return False
 
-def getEvaluacionSemanas(usuario, diccionario):
-    parse_diccionario = [1 if x > UMBRAL else 0 for x in diccionario]
-    insiders = __obtener_insiders() # Se obtienen los atacantes 
+def getEvaluacionSemanas(usuario, puntuaciones):
+    anomalias = [1 if x > UMBRAL else 0 for x in puntuaciones]
     resultados_semana = []
-    for i in range(0, len(parse_diccionario)):
-        if parse_diccionario[i] == 0:
-            if (usuario, (i + 6)%41) in insiders: # Se comprueba si el usuario está en atacantes (Se suma 6 pues las primeras cinco semanas no hay evaluaciones) 
-                resultados_semana.append("FN") # Falso negativo, la evaluación da atacante y no era atacante
+    # print([x for x in insiders if x[0] == usuario])
+    for semana in range(0, len(anomalias)):
+        if anomalias[semana] == 0:
+            if (usuario, (semana + 6)) in insiders: # Se comprueba si el usuario está en atacantes (Se suma 6 pues las primeras cinco semanas no hay evaluaciones) 
+                if resultados_semana[-1] == "VP":
+                    resultados_semana.append("VP")
+                else:
+                    resultados_semana.append("FN") # Falso negativo, la evaluación da atacante y no era atacante
             else:
                 resultados_semana.append("VN") # Verdadero negativo, la evaluación da no atacante y no era atacante
         else:
-            if (usuario, (i + 6)%41) in insiders:
+            if (usuario, (semana + 6)) in insiders:
+                resultados_semana.append("VP") # Verdadero positivo, la evolución da atacante y era atacante
+            elif compruebaSemana((usuario, (semana + 6))):
+                # Se marca como FP si hay un ataque en la semana anterior a posterior
                 resultados_semana.append("VP") # Verdadero positivo, la evolución da atacante y era atacante
             else:
                 resultados_semana.append("FP") # Falso positivo, la evolución da atacante y no era atacante
     return resultados_semana
 
 def actualizarDiccionarioEvaluaciones(evaluacion_semana, diccionario):
-    print("TEVAL",len(evaluacion_semana),"TDIC",len(diccionario))
+    # print("TEVAL",len(evaluacion_semana),"TDIC",len(diccionario))
     for i in range(0, len(evaluacion_semana)):
         valores_semana = diccionario[i]
         evaluacion = evaluacion_semana[i]
@@ -49,9 +63,12 @@ def __obtener_insiders():
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            semana = datetime.strptime(row[4], '%m/%d/%Y %H:%M:%S')
-            clave_semana = semana.isocalendar()[1]
-            res.append((row[3], clave_semana))
+            if datetime.strptime(row[4], '%m/%d/%Y %H:%M:%S').isocalendar()[0] != 2010:
+                continue
+            primera_semana = datetime.strptime(row[4], '%m/%d/%Y %H:%M:%S')
+            ultima_semana = datetime.strptime(row[5], '%m/%d/%Y %H:%M:%S')
+            for semana in range(primera_semana.isocalendar()[1], ultima_semana.isocalendar()[1]+1):
+                res.append((row[3], semana))
     return res
 
 def calcular_rendimiento(diccionario_evaluaciones):
@@ -67,3 +84,5 @@ def calcular_rendimiento(diccionario_evaluaciones):
             tasa_VN = evaluacion["VN"] / (evaluacion["FP"] +  evaluacion["VN"])
         rendimiento_semana.append(np.sqrt(tasa_VP * tasa_VN))
     return rendimiento_semana
+
+insiders = __obtener_insiders() # Se obtienen los atacantes 

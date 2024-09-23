@@ -1,5 +1,6 @@
 import csv
 import pandas as pd
+from const import ENTRADA
 from datetime import datetime
 
 ## ========================  INPUT.PY  =============================== ##
@@ -14,10 +15,12 @@ from datetime import datetime
 
 diccionario_actividades = {}
 
-# ACTUALIZAR DICCIONARIO
-# A partir de una actividad (Usuario, PC, actividad, fecha...) añade una nueva entrada en el diccionario de actividades del usuario.
-# La versión 2 del método distingue si la actividad se realiza en el horario laboral o fuera de él
+filter_users = []
 
+# ACTUALIZAR DICCIONARIO
+# A partir de una actividad (Usuario, PC, actividad, fecha...) añade una nueva entrada 
+# en el diccionario de actividades del usuario.
+# La versión 2 del método distingue si la actividad se realiza en el horario laboral o fuera de él
 def __actualizar_diccionario(row, actividad):
     valor = {}
     valor['activity'] = actividad
@@ -66,56 +69,121 @@ def __actualizar_diccionario2(row, actividad):
 
 def __obtener_diccionario_logon():
     res = []
+    found = False
     with open('./inputs/r4.2/logon.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            __actualizar_diccionario(row, row[4])
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            if anio == 2010:
+                # print(str(anio) + "-" + str(sem))
+                found = True
+                __actualizar_diccionario(row, row[4])
+            elif anio > 2010 and found:
+                break
     return res
 
 def __obtener_diccionario_logon2():
     res = []
+    found = False
     with open('./inputs/r4.2/logon.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            __actualizar_diccionario2(row, row[4])
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            # print(str(anio) + "-" + str(sem))
+            if anio == 2010:
+                found = True
+                __actualizar_diccionario2(row, row[4])
+            elif anio > 2010 and found:
+                break
     return res
 
 def __obtener_diccionario_http():
     res = []
+    found = False
     with open('./inputs/r4.2/http.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            __actualizar_diccionario(row, 'HTTP')
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            if anio == 2010:
+                found = True
+                __actualizar_diccionario(row, 'HTTP')
+            elif anio > 2010 and found:
+                break
     return res
 
 def __obtener_diccionario_email():
     res = []
+    found = False
     with open('./inputs/r4.2/email.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-            __actualizar_diccionario(row, "EMAIL")
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            # print(str(anio) + "-" + str(sem))
+            if anio == 2010:
+                found = True
+                __actualizar_diccionario(row, "EMAIL")
+            elif anio > 2010 and found:
+                break
     return res
 
 def __obtener_diccionario_file():
     res = []
+    found = False
     with open('./inputs/r4.2/file.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-           __actualizar_diccionario(row, 'USB')
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            # print(str(anio) + "-" + str(sem))
+            if anio == 2010:
+                found = True
+                __actualizar_diccionario(row, 'USB')
+            elif anio > 2010 and found:
+                break
     return res
 
 def __obtener_diccionario_device():
     res = []
+    found = False
     with open('./inputs/r4.2/device.csv', mode="r") as file:
         rows = csv.reader(file)
         next(rows)
         for row in rows:
-           __actualizar_diccionario(row, row[4])
+            if len(filter_users) > 0 and row[2] not in filter_users:
+                continue
+            semana = datetime.strptime(row[1], '%m/%d/%Y %H:%M:%S')
+            anio = semana.isocalendar()[0]
+            sem = semana.isocalendar()[1]
+            # print(str(anio) + "-" + str(sem))
+            if anio == 2010:
+                found = True
+                __actualizar_diccionario(row, row[4])
+            elif anio > 2010 and found:
+                break
     return res
 
 # OBTENER MODELO
@@ -139,11 +207,13 @@ def __obtener_modelo_3():
     # Además se suma las actividades de correo y mover archivos a USB
     __obtener_diccionario_logon2()
     __obtener_diccionario_email()
+    __obtener_diccionario_http()
     __obtener_diccionario_file()
     return diccionario_actividades
 
 def __obtener_modelo_4():
     __obtener_diccionario_logon()
+    __obtener_diccionario_http()
     __obtener_diccionario_email()
     __obtener_diccionario_file()
     __obtener_diccionario_device()
@@ -184,11 +254,11 @@ def __parse_valores2(actividades):
     return res
 
 def __parse_valores3(actividades):
-    VALORES = {'LogonI': 0, 'LogoffI': 1, 'LogonF': 2, 'LogoffF': 3, 'CDI': 4, 'CDF': 5, 'EMAIL': 6, 'USB': 7}
+    VALORES = {'LogonI': 0, 'LogoffI': 1, 'LogonF': 2, 'LogoffF': 3, 'CDI': 4, 'CDF': 5, 'EMAIL': 6, 'USB': 7, 'HTTP': 8}
     res = []
     sesiones = 0 # Indica si ya hay alguna sesión abierta
     for actividad in actividades:
-        if actividad['activity'] == 'LogoffI' or actividad['activity'] == 'LogoffF' or actividad['activity'] == 'EMAIL' or actividad['activity'] == 'USB':
+        if actividad['activity'] == 'LogoffI' or actividad['activity'] == 'LogoffF' or actividad['activity'] == 'EMAIL' or actividad['activity'] == 'USB' or actividad['activity'] == 'HTTP':
             res.append(VALORES.get(actividad['activity']))
             sesiones = sesiones - 1
         else:
@@ -292,12 +362,12 @@ def parse_to_dataframe(actividades_semana):
 # que almacen los valores en archivos locales
 
 def actualizar_archivo_local(secuencia, usuario):
-    f = open("inputs/local(MODELOD).txt", "a")
+    f = open(ENTRADA, "a")
     f.write("{};{}\n".format(usuario, secuencia))
     f.close()
 
 def get_secuencia_local(usuario):
-    f = open("inputs/local(MODELOD).txt", "r")
+    f = open(ENTRADA, "r")
     res = {}
     for line in f.readlines():
         lineas = line.split(';')
